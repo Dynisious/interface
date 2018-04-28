@@ -1,14 +1,4 @@
 [[package]]
 name = "finite_rts"
 version = "0.1.0"
-dependencies = [
- "ident 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
-]
 
-[[package]]
-name = "ident"
-version = "0.2.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[metadata]
-"checksum ident 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)" = "725e41a6f15eb81ef3bff52f4bc92377024ff897558c18c873861a88e3634893"

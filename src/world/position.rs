@@ -92,3 +92,17 @@ impl<T: AsMut<Pos> + AsRef<Pos>> Positionable for T {
     fn get_position(&self) -> &Pos { self.as_ref() }
     fn set_position(mut self, pos: &Pos) -> Self { *self.as_mut() = *pos; self }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_pos() {
+        let pos = Pos::new(1, 2);
+
+        assert_eq!(Pos::dot(&pos, &pos), 5, "`Pos::dot` failed.");
+        assert_eq!(pos.mag2(), Pos::dot(&pos, &pos), "`Pos::mag2` failed.");
+        assert_eq!(pos.dist2_from(&Pos::new(1, 1)), 1, "`Pos::dist2_from` failed.");
+    }
+}

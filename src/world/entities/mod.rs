@@ -2,13 +2,11 @@
 pub use std::convert::TryInto;
 
 mod unit;
-pub mod tilepool;
 
-pub use self::tilepool::*;
 pub use self::unit::*;
 
 /// An `Entity` is some inhabitant of a `Tile`.
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub enum Entity {
     /// A `Unit` Entity.
     Unit(Box<Unit>),
