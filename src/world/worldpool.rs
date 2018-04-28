@@ -1,6 +1,5 @@
 
-use std::boxed::FnBox;
-use std::collections::{HashMap, hash_map::Entry::*};
+use std::collections::{HashMap, hash_map::Entry::{Occupied, Vacant}};
 use std::ops::Deref;
 use world::{Pos, entities::Entity, Combat};
 
@@ -36,15 +35,16 @@ impl WorldPool {
     /// 
     /// dest --- The `Pos` to place `entity` at.
     /// entity --- The `Entity` to place.
-    pub fn move_to(&mut self, dest: Pos, entity: Entity) -> Result<(), WorldLock> {
+    pub fn move_to(&mut self, dest: Pos, entity: Entity) -> Result<(), Combat> {
         //Insert the `entity` or initiate combat.
         match self.0.entry(dest) {
             //The entry is empty, insert `entity`.
             Vacant(entry) => { entry.insert(entity); Ok(()) },
             //Initiate combat.
-            Occupied(entry) => Err(WorldLock::new(Box::new(
-                || Combat::new(entity, entry.into_mut()).resolve()
-            ))),
+            Occupied(entry) => Err(
+                //Create a new `Combat` instance to be resolved.
+                Combat::new(entity, entry.into_mut())
+            ),
         }
     }
     /// Attempts to extract an `Entity` from the `WorldPool`.
@@ -70,13 +70,6 @@ impl Deref for WorldPool {
     fn deref(&self) -> &Self::Target { &self.0 }
 }
 
-pub struct WorldLock<'call>(Box<'call + FnBox()>);
-
-impl<'call> WorldLock<'call> {
-    pub fn new(callback: Box<'call + FnBox()>) -> Self { WorldLock(callback) }
-    pub fn resolve(self) { self.0() }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -88,17 +81,25 @@ mod tests {
         let pos = Pos::new(3, 4);
         let entity = Entity::from(Box::new(Unit));
 
+        //Fill `pos` in `pool`.
         if let Err(_) = pool.add_to(pos, entity.clone()) {
+            //There was an error while inserting into `pool`.
             panic!("`WorldPool::add_to` failed.")
         }
+        //Check the insertion succeeded.
         assert_ne!(pool.get(&pos), None, "`WorldPool::add_to` failed to insert the `Entity`.");
 
+        //Attempt to move into occupied `pos`.
         match pool.move_to(pos, entity.clone()) {
-            Ok(_) => panic!("`WorldPool::move_to` failed."),
-            Err(lock) => lock.resolve(),
+            //There should have been a combat initiated.
+            Ok(_) => panic!("`WorldPool::move_to` failed to initiate `Combat`."),
+            //Combat was initiated, resolve it.
+            Err(lock) => assert!(lock.resolve(), "`WorldPool::move_to` combat failed."),
         }
 
+        //Remove the `Entity` from `pos`.
         if let None = pool.remove_from(&pos) {
+            //There was nothing to remove.
             panic!("`WorldPool::remove_from` failed.")
         }
     }

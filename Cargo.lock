@@ -1,4 +1,11 @@
 [[package]]
 name = "finite_rts"
 version = "0.1.0"
+dependencies = [
+ "position 0.1.0",
+]
+
+[[package]]
+name = "position"
+version = "0.1.0"
 

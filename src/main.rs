@@ -1,9 +1,7 @@
 
-#![feature(fnbox)]
 #![feature(try_from)]
-#![feature(fixed_size_array)]
 
-extern crate core;
+extern crate position;
 
 mod world;
 
