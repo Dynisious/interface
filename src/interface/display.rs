@@ -26,21 +26,26 @@ fn pos_to_coord(pos: &Pos) -> COORD {
 
 pub fn display<'a, Iter>(output_handle: HANDLE, items: Iter) -> io::Result<()>
     where Iter: IntoIterator<Item = (&'a Pos, char)> {
-    use std::io::Write;
+    use winapi::um::fileapi::WriteFile;
 
     clear(output_handle)
-    .and_then(|_| {
+    .and_then(|_| unsafe {
         const WIDTH: i16 = 83;
         const HEIGHT: i16 = 23;
-
-        let out = io::stdout();
-        let mut out = out.lock();
+        const DASH: u8 = b'-';
+        const LINE: u8 = b'|';
+        
         let mut cursor = COORD { X: 1, Y: 0 };
         
         while cursor.X < (WIDTH - 1) {
             set_cursor(output_handle, cursor)?;
-            print!("-");
-            out.flush()?;
+            if 0 == WriteFile(
+                    output_handle,
+                    &DASH as *const _ as *const _,
+                    1, 0 as *mut _, 0 as *mut _
+                ) {
+                return Err(io::Error::last_os_error())
+            }
             
             cursor.X += 1;
         }
@@ -48,13 +53,23 @@ pub fn display<'a, Iter>(output_handle: HANDLE, items: Iter) -> io::Result<()>
         while cursor.Y < HEIGHT {
             cursor.X = 0;
             set_cursor(output_handle, cursor)?;
-            print!("|");
-            out.flush()?;
+            if 0 == WriteFile(
+                    output_handle,
+                    &LINE as *const _ as *const _,
+                    1, 0 as *mut _, 0 as *mut _
+                ) {
+                return Err(io::Error::last_os_error())
+            }
             
             cursor.X = WIDTH - 1;
             set_cursor(output_handle, cursor)?;
-            print!("|");
-            out.flush()?;
+            if 0 == WriteFile(
+                    output_handle,
+                    &LINE as *const _ as *const _,
+                    1, 0 as *mut _, 0 as *mut _
+                ) {
+                return Err(io::Error::last_os_error())
+            }
             
             cursor.Y += 1;
         }
@@ -63,16 +78,26 @@ pub fn display<'a, Iter>(output_handle: HANDLE, items: Iter) -> io::Result<()>
         cursor.Y -= 1;
         while cursor.X < (WIDTH - 1) {
             set_cursor(output_handle, cursor)?;
-            print!("-");
-            out.flush()?;
+            if 0 == WriteFile(
+                    output_handle,
+                    &DASH as *const _ as *const _,
+                    1, 0 as *mut _, 0 as *mut _
+                ) {
+                return Err(io::Error::last_os_error())
+            }
             
             cursor.X += 1;
         }
 
         for (pos, c) in items {
             set_cursor(output_handle, pos_to_coord(pos))?;
-            print!("{}", c);
-            out.flush()?;
+            if 0 == WriteFile(
+                    output_handle,
+                    &c as *const _ as *const _,
+                    1, 0 as *mut _, 0 as *mut _
+                ) {
+                return Err(io::Error::last_os_error())
+            }
         }
         
         cursor = COORD { X: WIDTH / 2, Y: HEIGHT / 2 };

@@ -7,5 +7,5 @@ authors = ["Dynisious <daniel.bechaz@gmail.com>"]
 debug = []
 
 [dependencies]
-winapi = { version = "*", features = ["wincon", "consoleapi", "processenv", "winbase", "handleapi"] }
+winapi = { version = "*", features = ["wincon", "consoleapi", "processenv", "winbase", "handleapi", "fileapi"] }
 position = { path="..\\position" }
