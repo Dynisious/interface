@@ -1,6 +1,6 @@
 
-use winapi::um::wincon::{CONSOLE_SCREEN_BUFFER_INFO,};
-use super::{HANDLE, COORD, io, Pos};
+use winapi::um::wincon::{CONSOLE_SCREEN_BUFFER_INFO, COORD,};
+use super::{HANDLE, io, Pos,};
 
 fn get_csbi(output_handle: HANDLE, mut csbi: CONSOLE_SCREEN_BUFFER_INFO) -> io::Result<CONSOLE_SCREEN_BUFFER_INFO> {
     use winapi::um::wincon::GetConsoleScreenBufferInfo;
@@ -24,85 +24,84 @@ fn pos_to_coord(pos: &Pos) -> COORD {
     COORD { X: pos.x as i16, Y: pos.y as i16, }
 }
 
-pub fn display<'a, Iter>(output_handle: HANDLE, items: Iter) -> io::Result<()>
-    where Iter: IntoIterator<Item = (&'a Pos, char)> {
+const WIDTH: i32 = 83;
+const HEIGHT: i32 = 28;
+static CENTRE: Pos = Pos::new((WIDTH - 1) / 2, HEIGHT / 2);
+
+macro_rules! index {
+    ($x:expr, $y:expr) => (index!(i32, $x, $y));
+    ($tp:ty, $x:expr, $y:expr) => (((WIDTH + 1) as $tp * $y) + $x);
+}
+
+fn write_display(display: &mut [u8], size: &Pos, cursor: &Pos, bytes: &[u8]) {
+    #[cfg(debug_assertions)] {
+    debug_assert_eq!((size.x + 1) * size.y, display.len() as i32,
+        "The size of `display` is not the size expected from `size`."
+    )}
+    let index = index!(usize, cursor.x as usize, cursor.y as usize);
+
+    for (index, &b) in (index..(index + bytes.len())).zip(bytes) {
+        display[index] = b
+    }
+}
+
+fn gen_display<Iter>(items: Iter) -> Vec<u8>
+    where Iter: IntoIterator<Item = (Pos, u8)> {
+    static SIZE: Pos = Pos::new(WIDTH, HEIGHT);
+    const DASH: u8 = b'-';
+    static LINES: [u8; 1] = [b'|'; 1];
+    static DASHES: [u8; WIDTH as usize - 2] =  [DASH; WIDTH as usize - 2];
+    
+    let mut cursor = Pos::new(1, 0);
+    let mut buffer = vec![b' '; (WIDTH as usize + 1) * HEIGHT as usize];
+
+    for byte in buffer.iter_mut().skip(WIDTH as usize).step_by(WIDTH as usize + 1) { *byte = b'\n' }
+    
+    write_display(&mut buffer, &SIZE, &cursor, &DASHES);
+    cursor.y = HEIGHT - 1;
+    write_display(&mut buffer, &SIZE, &cursor, &DASHES);
+    
+    cursor.y = 0;
+    while cursor.y < HEIGHT {
+        cursor.x = 0;
+        write_display(&mut buffer, &SIZE, &cursor, &LINES);
+        
+        cursor.x = WIDTH - 1;
+        write_display(&mut buffer, &SIZE, &cursor, &LINES);
+        
+        cursor.y += 1;
+    }
+
+    for (pos, c) in items.into_iter()
+        .map(|(pos, c)| (pos + CENTRE, c))
+        .filter(|(pos, _)| 1 < pos.x && pos.x < WIDTH
+            && 0 < pos.y && pos.y < (HEIGHT - 1)) {
+        write_display(&mut buffer, &SIZE, &pos, &[c.into()]);
+    }
+    
+    buffer
+}
+
+pub fn display<Iter>(output_handle: usize, items: Iter) -> io::Result<()>
+    where Iter: IntoIterator<Item = (Pos, u8)> {
     use winapi::um::fileapi::WriteFile;
+    
+    let buffer = gen_display(items);
 
-    clear(output_handle)
-    .and_then(|_| unsafe {
-        const WIDTH: i16 = 83;
-        const HEIGHT: i16 = 23;
-        const DASH: u8 = b'-';
-        const LINE: u8 = b'|';
-        
-        let mut cursor = COORD { X: 1, Y: 0 };
-        
-        while cursor.X < (WIDTH - 1) {
-            set_cursor(output_handle, cursor)?;
-            if 0 == WriteFile(
-                    output_handle,
-                    &DASH as *const _ as *const _,
-                    1, 0 as *mut _, 0 as *mut _
-                ) {
-                return Err(io::Error::last_os_error())
-            }
-            
-            cursor.X += 1;
-        }
-        
-        while cursor.Y < HEIGHT {
-            cursor.X = 0;
-            set_cursor(output_handle, cursor)?;
-            if 0 == WriteFile(
-                    output_handle,
-                    &LINE as *const _ as *const _,
-                    1, 0 as *mut _, 0 as *mut _
-                ) {
-                return Err(io::Error::last_os_error())
-            }
-            
-            cursor.X = WIDTH - 1;
-            set_cursor(output_handle, cursor)?;
-            if 0 == WriteFile(
-                    output_handle,
-                    &LINE as *const _ as *const _,
-                    1, 0 as *mut _, 0 as *mut _
-                ) {
-                return Err(io::Error::last_os_error())
-            }
-            
-            cursor.Y += 1;
-        }
-        
-        cursor.X = 1;
-        cursor.Y -= 1;
-        while cursor.X < (WIDTH - 1) {
-            set_cursor(output_handle, cursor)?;
-            if 0 == WriteFile(
-                    output_handle,
-                    &DASH as *const _ as *const _,
-                    1, 0 as *mut _, 0 as *mut _
-                ) {
-                return Err(io::Error::last_os_error())
-            }
-            
-            cursor.X += 1;
-        }
+    clear(output_handle as HANDLE)?;
+    
+    unsafe {
+        if 0 == WriteFile(
+            output_handle as HANDLE,
+            buffer.as_ptr() as *const _,
+            buffer.len() as _,
+            0 as *mut _, 0 as *mut _
+        ) { return Err(io::Error::last_os_error()) }
+    }
 
-        for (pos, c) in items {
-            set_cursor(output_handle, pos_to_coord(pos))?;
-            if 0 == WriteFile(
-                    output_handle,
-                    &c as *const _ as *const _,
-                    1, 0 as *mut _, 0 as *mut _
-                ) {
-                return Err(io::Error::last_os_error())
-            }
-        }
-        
-        cursor = COORD { X: WIDTH / 2, Y: HEIGHT / 2 };
-        set_cursor(output_handle, cursor)
-    }).map_err(|e| { eprintln!("Display Error: {}", e); e })
+    set_cursor(output_handle as HANDLE, pos_to_coord(&CENTRE))?;
+
+    Ok(())
 }
 
 pub fn clear(output_handle: HANDLE) -> io::Result<()> {

@@ -18,7 +18,7 @@ pub fn get_keys() -> io::Result<&'static mut Keys> {
 }
 
 pub struct Keys {
-    console_handle: HANDLE,
+    console_handle: usize,
     msg: [INPUT_RECORD; 1],
     msg_read: u32,
 }
@@ -26,7 +26,7 @@ pub struct Keys {
 impl Keys {
     fn new(console_handle: HANDLE) -> Self {
         unsafe { Self {
-            console_handle: console_handle,
+            console_handle: console_handle as usize,
             msg: ::std::mem::uninitialized(),
             msg_read: ::std::mem::uninitialized(),
         }}
@@ -41,7 +41,7 @@ impl ::std::iter::Iterator for &'static mut Keys {
         use winapi::um::wincon::KEY_EVENT;
 
         loop { unsafe {
-            if ReadConsoleInputW(self.console_handle, self.msg.as_mut_ptr(),
+            if ReadConsoleInputW(self.console_handle as HANDLE, self.msg.as_mut_ptr(),
                 self.msg.len() as u32, &mut self.msg_read) == 0 {
                 return Some(Err(io::Error::last_os_error()))
             } else {

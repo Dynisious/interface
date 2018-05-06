@@ -13,6 +13,14 @@ pub enum Entity {
     Unit(Box<Unit>),
 }
 
+impl Entity {
+    pub fn as_byte(&self) -> u8 {
+        match self {
+            Entity::Unit(_) => b'U',
+        }
+    }
+}
+
 impl From<Box<Unit>> for Entity {
     fn from(from: Box<Unit>) -> Self {
         Entity::Unit(from)

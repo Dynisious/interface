@@ -55,16 +55,11 @@ impl WorldPool {
         //Remove the `Entity` at `pos`.
         self.0.remove(pos)
     }
+    pub fn update(&mut self) {}
 }
 
 impl Default for WorldPool {
-    fn default() -> Self {
-        WorldPool::new(
-            [Pos::new(0, 0), Pos::new(0, 3), Pos::new(3, 2)].iter()
-            .map(|pos| (pos.clone(), Entity::from(Box::new(::world::entities::Unit))))
-            .collect::<HashMap<_, _>>()
-        )
-    }
+    fn default() -> Self { WorldPool::new(HashMap::default()) }
 }
 
 impl Deref for WorldPool {
