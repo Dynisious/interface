@@ -1,5 +1,6 @@
 
 pub use std::convert::TryInto;
+use std::fmt::{self, Display, Formatter};
 
 mod unit;
 
@@ -24,5 +25,13 @@ impl TryInto<Box<Unit>> for Entity {
     fn try_into(self) -> Result<Box<Unit>, Self::Error> {
         // if let Entity::Unit(unit) = self { Ok(unit) } else { Err(self) }
         let Entity::Unit(res) = self; Ok(res)
+    }
+}
+
+impl Display for Entity {
+    fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+        match self {
+            Entity::Unit(unit) => unit.fmt(fmt),
+        }
     }
 }

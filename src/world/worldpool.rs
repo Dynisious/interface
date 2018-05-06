@@ -40,11 +40,8 @@ impl WorldPool {
         match self.0.entry(dest) {
             //The entry is empty, insert `entity`.
             Vacant(entry) => { entry.insert(entity); Ok(()) },
-            //Initiate combat.
-            Occupied(entry) => Err(
-                //Create a new `Combat` instance to be resolved.
-                Combat::new(entity, entry.into_mut())
-            ),
+            //Initiate combat, create a new `Combat` instance to be resolved.
+            Occupied(entry) => Err(Combat::new(entity, entry.into_mut())),
         }
     }
     /// Attempts to extract an `Entity` from the `WorldPool`.
@@ -61,7 +58,13 @@ impl WorldPool {
 }
 
 impl Default for WorldPool {
-    fn default() -> Self { WorldPool::new(HashMap::default()) }
+    fn default() -> Self {
+        WorldPool::new(
+            [Pos::new(0, 0), Pos::new(0, 3), Pos::new(3, 2)].iter()
+            .map(|pos| (pos.clone(), Entity::from(Box::new(::world::entities::Unit))))
+            .collect::<HashMap<_, _>>()
+        )
+    }
 }
 
 impl Deref for WorldPool {

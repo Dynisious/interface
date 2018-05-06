@@ -3,5 +3,9 @@ name = "finite_rts"
 version = "0.1.0"
 authors = ["Dynisious <daniel.bechaz@gmail.com>"]
 
+[features]
+debug = []
+
 [dependencies]
+winapi = { version = "*", features = ["wincon", "consoleapi", "processenv", "winbase", "handleapi"] }
 position = { path="..\\position" }
