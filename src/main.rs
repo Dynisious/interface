@@ -1,4 +1,5 @@
 
+#![feature(mpsc_select)]
 #![feature(iterator_step_by)]
 #![feature(use_extern_macros)]
 #![feature(proc_macro_path_invoc)]
@@ -18,7 +19,7 @@ fn main() {
     use world::{World, WorldPool,};
 
     const SECOND: u64 = 1000;
-    const TICK: Duration = Duration::from_millis(SECOND / 10);
+    const TICK: Duration = Duration::from_millis(SECOND / 5);
     
     let mut world_tick = timer::Timer::new(TICK);
     let world_sub = world_tick.subscribe();

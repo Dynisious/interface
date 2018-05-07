@@ -79,6 +79,18 @@ fn gen_display<Iter>(items: Iter) -> Vec<u8>
         write_display(&mut buffer, &SIZE, &pos, &[c.into()]);
     }
     
+    cursor = Pos::default();
+    unsafe {
+        use super::FRMS;
+
+        write_display(&mut buffer, &SIZE, &cursor, format!("Frames:{}", FRMS).as_bytes());
+    }
+    cursor = Pos::new(0, HEIGHT - 1);
+    unsafe {
+        use super::FPS;
+
+        write_display(&mut buffer, &SIZE, &cursor, format!("FPS:{}", FPS).as_bytes());
+    }
     buffer
 }
 
@@ -98,8 +110,6 @@ pub fn display<Iter>(output_handle: usize, items: Iter) -> io::Result<()>
             0 as *mut _, 0 as *mut _
         ) { return Err(io::Error::last_os_error()) }
     }
-
-    set_cursor(output_handle as HANDLE, pos_to_coord(&CENTRE))?;
 
     Ok(())
 }

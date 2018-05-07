@@ -42,6 +42,10 @@ fn get_output_handle() -> io::Result<HANDLE> {
     }
 }
 
+static mut FPS: f32 = 0.0;
+static mut FRMS: f32 = 0.0;
+static mut TICKS: f32 = 0.0;
+
 pub fn start(world_update: Receiver<WorldState>) -> io::Result<(JoinHandle<io::Result<()>>, JoinHandle<()>)> {
     use std::sync::mpsc::channel;
     use std::thread::spawn;
@@ -60,14 +64,29 @@ pub fn start(world_update: Receiver<WorldState>) -> io::Result<(JoinHandle<io::R
                     state.iter().map(|(a, b)| (*a - cursor, *b))
                 ).map_err(|e| { eprintln!("Display Error: {}", e); e })?;
             }
+            unsafe { FRMS += 1.0 }
 
-            if let Ok(new) = world_update.try_recv() { state = Some(new) }
-            if let Ok(key) = interface_recv.try_recv() {
-                match key {
-                    KeyMessage::Exit => return Ok(()),
-                    KeyMessage::MoveCam(mv) => cursor += mv,
+            select!(
+                msg = world_update.recv() => if let Ok(new) = msg {
+                    unsafe {
+                        static mut CNT: f32 = 0.0;
+
+                        TICKS += 1.0;
+                        if TICKS == 5.0 {
+                            FPS = FRMS - CNT;
+                            CNT = FRMS;
+                            TICKS = 0.0;
+                        }
+                    }
+                    state = Some(new)
+                },
+                msg = interface_recv.recv() => if let Ok(key) = msg {
+                    match key {
+                        KeyMessage::Exit => return Ok(()),
+                        KeyMessage::MoveCam(mv) => cursor += mv,
+                    }
                 }
-            }
+            )
         }
     });
     let keys = get_keys().expect("Failed to get Keys.");
