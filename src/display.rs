@@ -150,8 +150,6 @@ pub fn display(output_handle: HANDLE, items: impl IntoIterator<Item = (COORD, u8
         ) { return Err(io::Error::last_os_error()) }
     }
 
-    set_cursor(output_handle, CENTRE)?;
-
     Ok(())
 }
 
