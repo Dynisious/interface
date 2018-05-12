@@ -4,7 +4,11 @@ version = "0.1.0"
 authors = ["Dynisious <daniel.bechaz@gmail.com>"]
 
 [features]
+default = ["all"]
 debug = []
+all = ["keys", "display"]
+keys = []
+display = []
 
 [dependencies]
 winapi = { version = "*", features = ["wincon", "consoleapi", "processenv", "winbase", "handleapi", "fileapi", "winuser"] }
