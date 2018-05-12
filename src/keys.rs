@@ -8,12 +8,8 @@ use std::iter::Iterator;
 use std::thread::JoinHandle;
 use std::sync::mpsc::{Receiver, SendError,};
 use std::sync::atomic::{AtomicPtr, Ordering};
-use winapi::um::wincon::INPUT_RECORD;
+use winapi::um::wincon::{INPUT_RECORD, KEY_EVENT_RECORD,};
 use winapi::um::winnt::HANDLE;
-
-mod key_event;
-
-pub use self::key_event::*;
 
 const NULL_KEYS: *mut Keys = 0 as *mut _;
 static mut KEYS_PTR: AtomicPtr<Keys> = AtomicPtr::new(NULL_KEYS);
@@ -87,7 +83,7 @@ impl Keys {
     /// 
     /// * `Keys::instance` failed to return a `Keys` instance.
     /// * Failed to spawn a new thread.
-    pub fn start<T: 'static + From<KeyEvent> + Send>() -> io::Result<(JoinHandle<Result<(), SendError<T>>>, Receiver<T>)> {
+    pub fn start<T: 'static + From<KEY_EVENT_RECORD> + Send>() -> io::Result<(JoinHandle<Result<(), SendError<T>>>, Receiver<T>)> {
         use std::thread::Builder;
         use std::sync::mpsc::channel;
 
@@ -100,11 +96,11 @@ impl Keys {
             //The thread will be named.
             .name("Keys".into())
             .spawn(move || {
-                //Loop for each `KeyEvent`.
+                //Loop for each Key event.
                 for event in keys {
                     match event {
-                        //The `KeyEvent` was fine, convert and send the event.
-                        Ok(event) => if let Err(e) = output.send(KeyEvent::from(event).into()) {
+                        //The Key event was fine, convert and send the event.
+                        Ok(event) => if let Err(e) = output.send(event.into()) {
                             //There was an error sending the event, the thread exits.
                             eprintln!("Key Error: {}", e); return Err(e)
                         },
@@ -123,7 +119,7 @@ impl Keys {
 }
 
 impl Iterator for Keys {
-    type Item = io::Result<KeyEvent>;
+    type Item = io::Result<KEY_EVENT_RECORD>;
 
     fn next(&mut self) -> Option<Self::Item> {
         use winapi::um::consoleapi::ReadConsoleInputW;
@@ -144,8 +140,8 @@ impl Iterator for Keys {
                 
                 //Check that the message is a key event.
                 if msg.EventType == KEY_EVENT {
-                    //Convert the message into a `KeyEvent`.
-                    let msg = (*msg.Event.KeyEvent()).into();
+                    //Convert the message into a `KEY_EVENT_RECORD`.
+                    let msg = msg.Event.KeyEvent();
 
                     //Output the event if debug is enabled.
                     #[cfg(feature = "debug")]
@@ -155,7 +151,7 @@ impl Iterator for Keys {
                         msg.wVirtualKeyCode
                     );
 
-                    return Some(Ok(msg))
+                    return Some(Ok(*msg))
                 }
             }
         }}
