@@ -1,11 +1,16 @@
+//! `display` provides functions to display output to the user.
+//! 
+//! Author --- daniel.bechaz@gmail.com  
+//! Last Modified --- 2018/05/12
 
 use std::io;
-use std::ops::{Add, Mul,};
 use winapi::um::wincon::{CONSOLE_SCREEN_BUFFER_INFO, COORD,};
 use winapi::um::winnt::HANDLE;
 
 const WIDTH: i16 = 83;
 const HEIGHT: i16 = 28;
+const BUFFER_SIZE: usize = (WIDTH as usize + 1) * HEIGHT as usize;
+static mut BUFFER: [u8; BUFFER_SIZE] = [b' '; BUFFER_SIZE];
 static SIZE: COORD = coord(WIDTH, HEIGHT);
 static CONSOLE_HOME: COORD = coord(0, 0);
 static CENTRE: COORD = coord((WIDTH - 1) / 2, HEIGHT / 2);
@@ -41,11 +46,25 @@ fn get_csbi(output_handle: HANDLE, mut csbi: CONSOLE_SCREEN_BUFFER_INFO) -> io::
     }.map_err(|e| { eprintln!("CSBI Error: {}", e); e })
 }
 
+/// Sets the position of the console cursor.
+/// 
+/// # Params
+/// 
+/// output_handle --- The handle to the output to set the cursor of.
+/// cursor --- The `COORD` to set the cursor too.
+/// 
+/// # Errors
+/// 
+/// * There was an OS error while setting the cursor.
 pub fn set_cursor(output_handle: HANDLE, cursor: COORD) -> io::Result<()> {
     use winapi::um::wincon::SetConsoleCursorPosition;
-    unsafe { 
+
+    unsafe {
+        //Set the cursor postion. 
         if 0 == SetConsoleCursorPosition(output_handle, cursor)
+        //There was an error setting the cursor.
         {  Err(io::Error::last_os_error()) }
+        //The cursor was set.
         else { Ok(()) }
     }.map_err(|e| { eprintln!("Cursor Error: {}", e); e })
 }
@@ -55,10 +74,13 @@ const fn index(x: i16, y: i16) -> usize {
 }
 
 fn write_display(display: &mut [u8], size: &COORD, cursor: &COORD, bytes: &[u8]) {
+    //Check that the buffer is the correct size.
     #[cfg(debug_assertions)] {
     debug_assert_eq!((size.X + 1) * size.Y, display.len() as i16,
         "The size of `display` is not the size expected from `size`."
     )}
+
+    //The index of the cursor.
     let index = index(cursor.X, cursor.Y);
     
     for (index, &b) in (index..(index + bytes.len())).zip(bytes) {
@@ -66,30 +88,34 @@ fn write_display(display: &mut [u8], size: &COORD, cursor: &COORD, bytes: &[u8])
     }
 }
 
-fn gen_display<Iter>(items: Iter) -> Vec<u8>
-    where Iter: IntoIterator<Item = (COORD, u8)> {
+fn gen_display(buffer: &mut [u8; BUFFER_SIZE], items: impl IntoIterator<Item = (COORD, u8)>) {
     const DASH: u8 = b'-';
     static LINES: [u8; 1] = [b'|'; 1];
     static DASHES: [u8; WIDTH as usize - 2] =  [DASH; WIDTH as usize - 2];
     
     let mut cursor = coord(1, 0);
-    let mut buffer = vec![b' '; (WIDTH as usize + 1) * HEIGHT as usize];
-
+    
+    for byte in buffer.iter_mut() {
+        *byte = b' '
+    }
+    
     for byte in buffer.iter_mut()
         .skip(WIDTH as usize)
-        .step_by(WIDTH as usize + 1) { *byte = b'\n' }
+        .step_by(WIDTH as usize + 1) {
+        *byte = b'\n'
+    }
     
-    write_display(&mut buffer, &SIZE, &cursor, &DASHES);
+    write_display(buffer, &SIZE, &cursor, &DASHES);
     cursor.Y = HEIGHT - 1;
-    write_display(&mut buffer, &SIZE, &cursor, &DASHES);
+    write_display(buffer, &SIZE, &cursor, &DASHES);
     
     cursor.Y = 0;
     while cursor.Y < HEIGHT {
         cursor.X = 0;
-        write_display(&mut buffer, &SIZE, &cursor, &LINES);
+        write_display(buffer, &SIZE, &cursor, &LINES);
         
         cursor.X = WIDTH - 1;
-        write_display(&mut buffer, &SIZE, &cursor, &LINES);
+        write_display(buffer, &SIZE, &cursor, &LINES);
         
         cursor.Y += 1;
     }
@@ -98,24 +124,28 @@ fn gen_display<Iter>(items: Iter) -> Vec<u8>
         .map(|(pos, c)| (coord_add(pos, CENTRE), c))
         .filter(|(pos, _)| 1 < pos.X && pos.X < WIDTH
             && 0 < pos.Y && pos.Y < (HEIGHT - 1)) {
-        write_display(&mut buffer, &SIZE, &pos, &[c.into()]);
+        write_display(buffer, &SIZE, &pos, &[c.into()]);
     }
-    
-    buffer
 }
 
+/// Displays the passed bytes to the output.
+/// 
+/// # Params
+/// 
+/// output_handle --- The handle to the output to display too.
+/// items --- The items to display.
 pub fn display(output_handle: HANDLE, items: impl IntoIterator<Item = (COORD, u8)>) -> io::Result<()> {
     use winapi::um::fileapi::WriteFile;
     
-    let buffer = gen_display(items);
+    unsafe { gen_display(&mut BUFFER, items); }
 
     set_cursor(output_handle, CONSOLE_HOME)?;
 
     unsafe {
         if 0 == WriteFile(
             output_handle as HANDLE,
-            buffer.as_ptr() as *const _,
-            buffer.len() as _,
+            BUFFER.as_ptr() as *const _,
+            BUFFER.len() as _,
             0 as *mut _, 0 as *mut _
         ) { return Err(io::Error::last_os_error()) }
     }
@@ -125,6 +155,7 @@ pub fn display(output_handle: HANDLE, items: impl IntoIterator<Item = (COORD, u8
     Ok(())
 }
 
+/// Clears the output.
 pub fn clear(output_handle: HANDLE) -> io::Result<()> {
     use winapi::um::wincon::{FillConsoleOutputCharacterW, FillConsoleOutputAttribute};
     
