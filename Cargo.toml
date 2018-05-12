@@ -1,5 +1,5 @@
 [package]
-name = "finite_rts"
+name = "interface"
 version = "0.1.0"
 authors = ["Dynisious <daniel.bechaz@gmail.com>"]
 
@@ -8,5 +8,3 @@ debug = []
 
 [dependencies]
 winapi = { version = "*", features = ["wincon", "consoleapi", "processenv", "winbase", "handleapi", "fileapi", "winuser"] }
-position = { path="..\\position" }
-timer = { git = "https://github.com/Dynisious/timer" }

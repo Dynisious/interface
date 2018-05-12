@@ -2,6 +2,11 @@
 use winapi::um::wincon::{CONSOLE_SCREEN_BUFFER_INFO, COORD,};
 use super::{HANDLE, io, Pos,};
 
+const WIDTH: i32 = 83;
+const HEIGHT: i32 = 28;
+static CONSOLE_HOME: COORD = COORD { X: 0, Y: 0 };
+static CENTRE: Pos = Pos::new((WIDTH - 1) / 2, HEIGHT / 2);
+
 fn get_csbi(output_handle: HANDLE, mut csbi: CONSOLE_SCREEN_BUFFER_INFO) -> io::Result<CONSOLE_SCREEN_BUFFER_INFO> {
     use winapi::um::wincon::GetConsoleScreenBufferInfo;
     unsafe {
@@ -19,14 +24,6 @@ pub fn set_cursor(output_handle: HANDLE, cursor: COORD) -> io::Result<()> {
         else { Ok(()) }
     }.map_err(|e| { eprintln!("Cursor Error: {}", e); e })
 }
-
-fn pos_to_coord(pos: &Pos) -> COORD {
-    COORD { X: pos.x as i16, Y: pos.y as i16, }
-}
-
-const WIDTH: i32 = 83;
-const HEIGHT: i32 = 28;
-static CENTRE: Pos = Pos::new((WIDTH - 1) / 2, HEIGHT / 2);
 
 macro_rules! index {
     ($x:expr, $y:expr) => (index!(i32, $x, $y));
@@ -94,14 +91,13 @@ fn gen_display<Iter>(items: Iter) -> Vec<u8>
     buffer
 }
 
-pub fn display<Iter>(output_handle: usize, items: Iter) -> io::Result<()>
-    where Iter: IntoIterator<Item = (Pos, u8)> {
+pub fn display(output_handle: HANDLE, items: impl IntoIterator<Item = (Pos, u8)>) -> io::Result<()> {
     use winapi::um::fileapi::WriteFile;
     
     let buffer = gen_display(items);
 
-    clear(output_handle as HANDLE)?;
-    
+    set_cursor(output_handle, CONSOLE_HOME)?;
+
     unsafe {
         if 0 == WriteFile(
             output_handle as HANDLE,
@@ -111,14 +107,14 @@ pub fn display<Iter>(output_handle: usize, items: Iter) -> io::Result<()>
         ) { return Err(io::Error::last_os_error()) }
     }
 
+    set_cursor(output_handle, COORD { X: CENTRE.x as i16, Y: CENTRE.y as i16 })?;
+
     Ok(())
 }
 
 pub fn clear(output_handle: HANDLE) -> io::Result<()> {
     use winapi::um::wincon::{FillConsoleOutputCharacterW, FillConsoleOutputAttribute};
     
-    static CONSOLE_HOME: COORD = COORD { X: 0, Y: 0 };
-
     Ok(()).and_then(|_| {
         let mut csbi;
         let console_size;

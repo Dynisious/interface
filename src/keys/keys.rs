@@ -2,8 +2,8 @@
 use std::io;
 use std::sync::atomic::{AtomicPtr, Ordering};
 use winapi::um::wincon::INPUT_RECORD;
-use winapi::um::wincon::KEY_EVENT_RECORD;
-use interface::{get_input_handle, HANDLE};
+pub use winapi::um::wincon::KEY_EVENT_RECORD;
+use ::{get_input_handle, HANDLE};
 
 pub fn get_keys() -> io::Result<&'static mut Keys> {
     static mut KEYS_PTR: AtomicPtr<Keys> = AtomicPtr::new(0 as *mut _);
@@ -51,7 +51,7 @@ impl ::std::iter::Iterator for &'static mut Keys {
                     let msg = msg.Event.KeyEvent();
 
                     #[cfg(feature = "debug")]
-                    eprintln!("Key Event: {}, char={}",
+                    eprintln!("Key Event: {}, code={}",
                         if msg.bKeyDown != 0 { "WM_KEYDOWN" }
                         else { "WM_KEYUP" },
                         msg.wVirtualKeyCode
