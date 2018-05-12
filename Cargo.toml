@@ -1,8 +1,11 @@
 [package]
 name = "interface"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Dynisious <daniel.bechaz@gmail.com>"]
 license = "0BSD"
+description = "A simple Commandline Interface API for getting Keyboard events and writing to the console."
+repository = "https://github.com/Dynisious/interface"
+documentation = "https://docs.rs/interface/"
 
 [features]
 debug = []
